@@ -117,3 +117,68 @@ linspace = do
 makeList :: Float -> Int -> Float -> [Float]
 makeList inicio 1 _ = [inicio]
 makeList inicio n salto = inicio : makeList (inicio + salto) (n-1) salto
+
+data Multi = MultiInt Int | MultiChar Char deriving Show
+
+listaHeterogenea:: Parser [Multi]
+listaHeterogenea = 
+    do
+        char '['
+        xs <- sepBy toMulti (char ',')
+        char ']'
+        return (xs)
+
+toMulti :: Parser Multi
+toMulti =
+    do
+        value <- int
+        return (MultiInt value)
+    <|>
+    do
+        char '\''
+        value <- alphanum
+        char '\''
+        return (MultiChar value)
+
+data Expr = Num Int | BinOp Op Expr Expr deriving Show
+data Op = Add | Mul | Res | Div deriving Show
+
+expr :: Parser Expr
+expr = do
+    t <- term
+    (do char '+'
+        e <- expr
+        return (BinOp Add t e)
+     <|>
+     do char '-'
+        e <- expr
+        return (BinOp Res t e)
+     <|>
+     return t)
+
+
+term :: Parser Expr
+term = do
+    f <- factor
+    (do char '*'
+        t <- term
+        return (BinOp Mul f t)
+     <|>
+     do char '/'
+        t <- term
+        return (BinOp Div f t)
+     <|>
+     return f)
+
+
+factor :: Parser Expr
+factor = 
+    do
+        d <- int
+        return (Num d)
+    <|>
+    do
+        char '('
+        e <- expr
+        char ')'
+        return e
