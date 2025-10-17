@@ -182,3 +182,66 @@ factor =
         e <- expr
         char ')'
         return e
+
+matrices :: Parser [[Int]]
+matrices = do char '['
+              xss <- sepBy toFilas (char ';')
+              char ']'
+              return xss
+
+toFilas :: Parser [Int]
+toFilas = do xs <- sepBy int (char ' ')
+             return xs
+
+data BoolExpr = BVal Bool
+                | Not BoolExpr
+                | And BoolExpr BoolExpr
+                | Or BoolExpr BoolExpr deriving Show
+
+-- OrExpr  -> AndExpr ('or' OrExpr | ε) 
+-- AndExpr -> NotExpr ('and' AndExpr | ε)
+-- NotExpr -> 'not' NotExpr | Bool
+-- Bool    -> 'True' | 'False' | '(' Expr ')'
+
+boolParser :: Parser BoolExpr
+boolParser = toOrExpr
+
+toOrExpr :: Parser BoolExpr
+toOrExpr = do
+  a <- toAndExpr
+  (do string " or "
+      b <- toOrExpr
+      return (Or a b))
+    <|> return a
+
+toAndExpr :: Parser BoolExpr
+toAndExpr = do
+  a <- toNotExpr
+  (do string " and "
+      b <- toAndExpr
+      return (And a b))
+    <|> return a
+
+toNotExpr :: Parser BoolExpr
+toNotExpr =
+  (do string "not "
+      a <- toNotExpr
+      return (Not a))
+  <|> toBoolExpr
+
+toBoolExpr :: Parser BoolExpr
+toBoolExpr =
+  (do string "True"
+      return (BVal True))
+  <|> (do string "False"
+          return (BVal False))
+  <|> (do char '('
+          x <- toOrExpr
+          char ')'
+          return x)
+
+evalBool :: BoolExpr -> Bool
+evalBool (Or a b) = (evalBool a) || (evalBool b)
+evalBool (And a b) = (evalBool a) && (evalBool b)
+evalBool (Not a) = not (evalBool a)
+evalBool (BVal a) = a
